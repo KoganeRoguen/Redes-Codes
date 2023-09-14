@@ -1,4 +1,4 @@
-import os, time, random
+import os, random
 
 def ler_valor_inteiro(mensagem):
     while True:
@@ -19,11 +19,6 @@ def salvar_lista(nome_lista, nome_arquivo):
         caminho = os.path.join(os.path.expanduser('~'), 'Documents', nome_arquivo)
         with open(caminho, 'w') as arquivo:
             arquivo.writelines(map(lambda x: str(x) + '\n', nome_lista))
-        os.system(f'start notepad.exe {caminho}')
-        
-        time.sleep(5)
-        
-        os.system('taskkill /f /im notepad.exe')
         return True
     except Exception as e:
         print(f'\n <Erro> Ocorreu um erro ao salvar a lista: {e}')
