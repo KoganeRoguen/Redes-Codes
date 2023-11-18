@@ -1,33 +1,57 @@
-import socket
-import os
+import socket,sys,os
 
-pingas = os.path.join(os.path.expanduser('~'), 'Downloads', 'pingas.csv')
+def criar_lista():
+    try:
+        here = os.path.dirname(os.path.abspath(__file__))
+        caminho_arq = os.path.join(here, 'pingas.csv')
+        with open(caminho_arq, 'r', encoding='iso-8859-1') as arq:
+            conteudo_arq = arq.read()
+        list_data = conteudo_arq.split('\n')
+        list_data = [linha.strip() for linha in list_data if linha.strip()]
+    except Exception as e:
+        print(f'<Erro> {e}')
+        sys.exit(1)
+    else:
+        return list_data
 
-def verifica_portas(host):
-    with open(pingas, 'r') as file:
-        next(file)
+def verify_portas(host):
+    list_data = criar_lista()
+
+    for n in list_data[1:]:
+        item = n.split(';')
         
-        for linha in file:
-            try:
-                porta, protocolo, descricao, status_resposta = linha.strip().split(';')
-            except ValueError:
-                print(f'<Erro> ocorreu um erro ao processar a linha: {linha}')
-                continue
-            
-            portas = [int(p.strip()) for p in porta.split(',')]
-            
-            for p in portas:
-                sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM if protocolo == 'TCP' else socket.SOCK_DGRAM)
-                sock.settimeout(1)
-                resultado = sock.connect_ex((host, p))
-                sock.close()
-                
-                status_resposta_porta = 'Responde (Aberta)' if resultado == 0 else 'Não responde (Fechada)'
-                
-                print(f'Porta: {p} | Protocolo: {protocolo} | ({descricao})/ Status: {status_resposta_porta}')
-            
-            print(f'Porta: {porta} | Protocolo: {protocolo} | ({descricao})/ Status: {status_resposta_porta}')
+        try:
+            porta = int(item[0].strip('\ufeff'))
+        except ValueError:
+            print(f'Ignorando linha inválida: {item}')
+            continue
+        
+        protocolo = item[1]
+        descricao = item[2]
 
+        sock = socket.socket(family=socket.AF_INET, type=socket.SOCK_STREAM)
+        sock.settimeout(3)
+        
+        try:
+            conn = sock.connect_ex((host, porta))
+            if conn == 0:
+                stat = 'Aberto'
+            else:
+                stat = 'Fechado'
+        except Exception as e:
+            print(f'<Erro> {porta} ------{e}')
+        else:
+            print(f'Porta {porta} | Protocolo: {protocolo} | ({descricao}) | Status: {stat}')
+        finally:
+            sock.close()
+        
 if __name__ == '__main__':
-    host_alvo = input('Informe o HOST a ser testado: ')
-    verifica_portas(host_alvo)
+    str_host = input('Digite a URL: ')
+        
+    try:
+        host_ip = socket.gethostbyname(str_host)
+    except socket.gaierror:
+        print(f'<Erro> não foi possível resolver o host {str_host}')
+        sys.exit(1)
+            
+    verify_portas(host_ip)
