@@ -1,68 +1,67 @@
-import socket,os
+import socket, os
 
 def download_image(url):
+    # Adiciona "http://" à URL se não estiver presente
+    if not url.startswith("http://") and not url.startswith("https://"):
+        url = "http://" + url
+
+    # Extrair o host e o caminho da URL
+    url_parts = url.split('/')
+    url_host = url_parts[2]
+    url_path = '/' + '/'.join(url_parts[3:])
+
+    # Remover informações extras não referentes à URL da imagem
+    url_path = url_path.split('?')[0]
+
+    # Configurações do socket
+    HOST_PORT = 80
+    BUFFER_SIZE = 4096
+
     try:
-        # Dividindo a URL para obter informações relevantes
-        url_parts = url.split('/')
-        url_parts = list(filter(None, url_parts)) # Remove elementos vazios
-    
-        url_host = url_parts[1]
-        url_image = '/'.join(url_parts[2:]).split('?')[0]
-    
-        # Atualizando a extensão do arquivo para PNG
-        url_image = os.path.splitext(url_image)[0] + '.png'
-        
-        # Criando a requisição HTTP
-        url_request = f'GET {url_image} HTTP/1.1\r\nHost: {url_host}\r\nConnection: close\r\n\r\n'
-    
-        HOST_PORT = 80
-        BUFFER_SIZE = 4096
-    
+        # Conectar ao servidor remoto
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock_img:
             sock_img.connect((url_host, HOST_PORT))
-            sock_img.sendall(url_request.encode())
-        
-            print('\n<Download> a imagem está sendo baixada...')
-        
-            # Montando a variável que armazenará os dados de retorno
+            request = f'GET {url_path} HTTP/1.1\r\nHost: {url_host}\r\nConnection: close\r\n\r\n'
+            sock_img.sendall(request.encode())
+
+            print('\nBaixando a imagem...')
+
+            # Montar a variável que armazenará os dados de retorno
             data_ret = b''
-        
+
             while True:
                 data = sock_img.recv(BUFFER_SIZE)
                 if not data:
                     break
                 data_ret += data
-            
-        # Obtendo o tamanho da imagem
-        img_size = -1
-        tmp = data_ret.split(b'\r\n')
-        for line in tmp:
-            if b'Content-Length:' in line:
-                img_size = int(line.split()[1])
-                break
-        
-        print(f'Tamanho da Imagem: {img_size} bytes')
-    
-        # Separando o cabeçalho dos dados
+
+        # Obter o tamanho da imagem
+        size_index = data_ret.find(b'Content-Length:')
+        if size_index != -1:
+            end_index = data_ret.find(b'\r\n', size_index)
+            img_size = int(data_ret[size_index + len('Content-Length:'):end_index].strip())
+            print(f'\nTamanho da Imagem: {img_size} bytes')
+
+        # Separar o cabeçalho dos dados
         delimiter = b'\r\n\r\n'
         position = data_ret.find(delimiter)
         headers = data_ret[:position]
         image = data_ret[position + 4:]
-        
-        # Criando o diretório se não existir
-        directory = os.path.dirname(url_image)
-        if not os.path.exists(directory):
-            os.makedirs(directory)
-        
-        # Salvando a imagem
-        with open(url_image, 'wb') as file_output:
+
+        # Extrair o nome do arquivo do caminho da URL
+        file_name = os.path.basename(url_path)
+
+        # Remover caracteres inválidos do nome do arquivo
+        file_name = ''.join(c for c in file_name if c.isalnum() or c in ['.', '-'])
+
+        with open(file_name, 'wb') as file_output:
             file_output.write(image)
-        
-        print(f'Imagem salva como: {url_image}')
-    
+
+        print(f'Imagem salva como: {file_name}')
+
     except Exception as e:
-        print(f'<Erro> ocorreu um erro durante a execução: {e}')
-        
-# Solicita a URL da imagem ao usuário
-url = input('Digite a URL completa da imagem: ')
+        print(f"Ocorreu um erro: {e}")
+
+# Solicitar URL ao usuário
+url = input("Digite a URL completa da imagem: ")
 download_image(url)
